@@ -4,30 +4,51 @@ using UnityEngine;
 
 public class EnemyShooting : MonoBehaviour
 {
-    
     public GameObject bullet;
     public Transform bulletPos;
+    public float shootingRange = 5f;
+    public float shootCooldown = 2f;
 
-    private float timer;
+    private GameObject hrac;
+    private float timer = 0f;
+    private bool playerInRange = false;
+
     void Start()
     {
-        
+        hrac = GameObject.FindGameObjectWithTag("Player");
     }
 
-    // Update is called once per frame
     void Update()
     {
-        timer += Time.deltaTime;
+        if (hrac == null) return;
 
-        if(timer > 2)
+        float distance = Vector2.Distance(transform.position, hrac.transform.position);
+
+        if (distance <= shootingRange)
         {
-            timer = 0;
-            shoot();
-        }
+            if (!playerInRange) 
+            {
+                Shoot();
+                timer = 0;
+                playerInRange = true;
+            }
 
-        
-    }
-    void shoot(){
-         Instantiate(bullet, bulletPos.position, Quaternion.identity);   
+            timer += Time.deltaTime;
+            if (timer > shootCooldown)
+            {
+                timer = 0;
+                Shoot();
+            }
         }
+        else
+        {
+            playerInRange = false;
+        }
+    }
+
+    void Shoot()
+    {
+        Instantiate(bullet, bulletPos.position, Quaternion.identity);
+        Debug.Log("Bot vystřelil!");
+    }
 }

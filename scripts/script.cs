@@ -4,46 +4,88 @@ using UnityEngine;
 
 public class script : MonoBehaviour
 {
-    public float movSpeed = 5f;
-    public float jumpForce = 15f;
-    public Transform groundCheck; // Prázdný objekt pod postavou pro kontrolu země
-    public float groundCheckRadius = 0.1f; // Poloměr raycastu pro kontrolu dotyku země
-    public LayerMask groundLayer; // Vrstva označující zem
+    public float movSpeed = 15f;
+    public float jumpForce = 20f;
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.1f;
+    public LayerMask groundLayer;
 
-    public float normalGravity = 1f; // Normální gravitace
-    public float fallGravity = 2.5f; // Zvýšená gravitace při pádu
+    public float normalGravity = 4f;
+    public float fallGravity = 10f;
 
-    private Rigidbody2D rb;
+    public float jumpHoldTime = 0.2f; 
+    private float jumpTimeCounter; 
+    private bool isJumping;
+
+    public Rigidbody2D rb;
     private bool isGrounded;
     private bool jumpRequested;
-    private bool isJumpBoostActive = false; // Sleduje, jestli je Jump Boost aktivní
-    private bool isSpeedBoostActive = false; // Sleduje, jestli je Speed Boost aktivní
+    private bool isJumpBoostActive = false;
+    public bool isSpeedBoostActive = false;
 
-    bool facingRight = true; // Sledujeme směr, kterým se hráč dívá
+    private PlayerShield shield;
+    bool facingRight = true;
+
+    public float dashDistance = 10f; 
+    public float dashDuration = 0.3f;  
+    public float dashCooldown = 5f;  
+    private bool isDashing = false;
+    private bool canDash = true;
+
+    public GameObject cooldownEffectObject; // Cooldown objekt ve scéně (NE PREFAB!)
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
+        shield = GetComponent<PlayerShield>();
+
+        // **Ujistíme se, že cooldown efekt je na začátku vypnutý**
+        if (cooldownEffectObject != null)
+        {
+            cooldownEffectObject.SetActive(false);
+        }
     }
 
     void Update()
     {
-        // Pohyb hráče
         float speedX = Input.GetAxisRaw("Horizontal") * movSpeed;
         rb.velocity = new Vector2(speedX, rb.velocity.y);
 
-        // Skákání
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
-            jumpRequested = true; // Požadavek na skok
+            jumpRequested = true;
+            isJumping = true;
+            jumpTimeCounter = jumpHoldTime;
         }
 
-        // Rychlý pád (držení šipky dolů)
+        if (Input.GetKey(KeyCode.Space) && isJumping)
+        {
+            if (jumpTimeCounter > 0)
+            {
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                jumpTimeCounter -= Time.deltaTime;
+            }
+            else
+            {
+                isJumping = false;
+            }
+        }
+
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            isJumping = false;
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
+        {
+            StartCoroutine(Dash());
+        }
+
         if (Input.GetKey(KeyCode.DownArrow))
         {
-            float slowFallSpeed = movSpeed * 1.5f; 
-            rb.velocity = new Vector2(rb.velocity.x, -slowFallSpeed); 
+            float slowFallSpeed = movSpeed * 1.5f;
+            rb.velocity = new Vector2(rb.velocity.x, -slowFallSpeed);
         }
 
         if (speedX > 0 && !facingRight)
@@ -56,85 +98,141 @@ public class script : MonoBehaviour
         }
     }
 
+    IEnumerator Dash()
+    {
+        isDashing = true;
+        canDash = false;
+
+        float startTime = Time.time;
+        float dashSpeed = dashDistance / dashDuration; 
+
+        float direction = facingRight ? 1f : -1f;
+
+        while (Time.time < startTime + dashDuration)
+        {
+            rb.velocity = new Vector2(direction * dashSpeed, rb.velocity.y);
+            yield return null;
+        }
+
+        rb.velocity = Vector2.zero;
+        isDashing = false;
+
+        // **Zapneme cooldown efekt a zajistíme, že je viditelný**
+        if (cooldownEffectObject != null)
+        {
+            cooldownEffectObject.SetActive(true);
+
+            // **Ujistíme se, že SpriteRenderer je viditelný**
+            SpriteRenderer sr = cooldownEffectObject.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                sr.enabled = true;
+            }
+        }
+
+        yield return new WaitForSeconds(dashCooldown); // Čekáme na cooldown
+
+        // **Vypneme cooldown efekt**
+        if (cooldownEffectObject != null)
+        {
+            cooldownEffectObject.SetActive(false);
+        }
+
+        canDash = true;
+    }
+
     void FixedUpdate()
     {
-        // Detekce, zda je hráč na zemi pomocí OverlapCircle
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        // Pokud je požadavek na skok a hráč je na zemi, provedeme skok
         if (jumpRequested && isGrounded)
         {
-            rb.AddForce(new Vector2(0, jumpForce), ForceMode2D.Impulse);
-            jumpRequested = false; // Resetujeme požadavek na skok
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            jumpRequested = false;
         }
 
-        // Nastavení gravitace podle toho, zda stoupá nebo padá
-        if (rb.velocity.y < 0) // Pokud hráč padá
+        if (rb.velocity.y < 0) 
         {
             rb.gravityScale = fallGravity;
+            rb.velocity += Vector2.down * (fallGravity * Time.fixedDeltaTime * 2f);
         }
-        else if (rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space)) // Pokud stoupá, ale nedrží Space
+        else if (rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space)) 
         {
-            rb.gravityScale = fallGravity * 0.8f; // Lehce zvýšená gravitace při stoupání
+            rb.gravityScale = fallGravity * 0.8f;
         }
-        else // Normální gravitace na zemi
+        else 
         {
             rb.gravityScale = normalGravity;
         }
     }
 
-    // Detekce při kontaktu s power-upy
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag("JumpBoost"))
+        if (collision.CompareTag("EnemyBullet"))
         {
-            Debug.Log("Jump Boost sebrán!");
-            StartCoroutine(ActivateJumpBoost());
-            Destroy(collision.gameObject); // Zničíme objekt Jump Boost
+            if (shield != null && shield.IsShieldActive()) 
+            {
+                Destroy(collision.gameObject);
+                Debug.Log("Štít zablokoval střelu!");
+            }
+            else
+            {
+                TakeDamage(1);
+                Destroy(collision.gameObject);
+            }
         }
-        else if (collision.CompareTag("SpeedBoost"))
+        
+        /* else if (collision.CompareTag("SpeedBoost"))
         {
             Debug.Log("Speed Boost sebrán!");
-            StartCoroutine(ActivateSpeedBoost(2f, 5f)); // Aktivujeme Speed Boost s násobitelem 2 a trváním 5 sekund
-            Destroy(collision.gameObject); // Zničíme objekt Boots
-        }
+            StartCoroutine(ActivateSpeedBoost(2f, 5f));
+            Destroy(collision.gameObject);
+        } */
     }
 
     private void Flip()
     {
-        facingRight = !facingRight; // Přepneme směr
+        facingRight = !facingRight;
         Vector3 scale = transform.localScale;
-        scale.x *= -1; // Otočíme hráče
+        scale.x *= -1;
         transform.localScale = scale;
     }
 
-    // Logika Jump Boostu
-    private IEnumerator ActivateJumpBoost()
-    {
-        if (isJumpBoostActive) yield break; // Pokud už je aktivní, nic nedělej
+    
 
-        isJumpBoostActive = true; // Nastavíme, že je Jump Boost aktivní
-        float originalJumpForce = jumpForce; // Uložíme původní sílu skoku
-        jumpForce *= 2f; // Zvýšíme sílu skoku (lze upravit faktor)
-
-        yield return new WaitForSeconds(5f); // Boost trvá 5 sekund
-
-        jumpForce = originalJumpForce; // Vrátíme původní sílu skoku
-        isJumpBoostActive = false; // Resetujeme stav
-    }
-
-    // Logika Speed Boostu
     public IEnumerator ActivateSpeedBoost(float multiplier, float boostDuration)
     {
-        if (isSpeedBoostActive) yield break; // Pokud už je aktivní, nic nedělej
+        if (isSpeedBoostActive) yield break;
 
-        isSpeedBoostActive = true; // Nastavíme, že je Speed Boost aktivní
-        float originalMovSpeed = movSpeed; // Uložíme původní rychlost
-        movSpeed *= multiplier; // Zvýšíme rychlost pohybu
+        isSpeedBoostActive = true;
+        float originalSpeed = movSpeed;
+        float targetSpeed = originalSpeed * multiplier;
 
-        yield return new WaitForSeconds(boostDuration); // Boost trvá určitou dobu
+        float elapsedTime = 0f;
+        while (elapsedTime < 0.5f)
+        {
+            movSpeed = Mathf.Lerp(originalSpeed, targetSpeed, elapsedTime / 0.5f);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        movSpeed = targetSpeed;
 
-        movSpeed = originalMovSpeed; // Vrátíme původní rychlost
-        isSpeedBoostActive = false; // Resetujeme stav
+        yield return new WaitForSeconds(boostDuration);
+
+        elapsedTime = 0f;
+        while (elapsedTime < 0.5f)
+        {
+            movSpeed = Mathf.Lerp(targetSpeed, originalSpeed, elapsedTime / 0.5f);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        movSpeed = originalSpeed;
+
+        isSpeedBoostActive = false;
+    }
+
+    private void TakeDamage(int damage)
+    {
+        Debug.Log("Hráč dostal zásah! HP - " + damage);
     }
 }

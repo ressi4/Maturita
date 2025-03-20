@@ -4,19 +4,19 @@ using UnityEngine;
 
 public class BootsPowerUp : MonoBehaviour
 {
-    public float speedMultiplier = 2f; 
+    public float speedMultiplier = 0.05f; //boost
     public float duration = 5f; 
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
-            other.GetComponent<script>().StartCoroutine(
-                other.GetComponent<script>().ActivateSpeedBoost(speedMultiplier, duration)
-            );
-            Destroy(gameObject); // Zničí objekt Boots
+            script playerScript = other.GetComponent<script>();
+            if (playerScript != null && !playerScript.isSpeedBoostActive)
+            {
+                playerScript.StartCoroutine(playerScript.ActivateSpeedBoost(speedMultiplier, duration));
+                Destroy(gameObject);
+            }
         }
     }
 }
-
-
