@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class ParallaxEffect : MonoBehaviour
 {
-    public float parallaxSpeed = 0.5f; // Rychlost pohybu vrstvy (nižší hodnota = pomalejší pohyb)
+    public float parallaxSpeed = 0.5f; 
     private Transform cam;
     private Vector3 lastCamPosition;
 

@@ -47,7 +47,7 @@ void spawnNext(bool isFake = false)
     float newY = currentY + yOffset;
     float newX = gameObject.transform.position.x + Random.Range(MinXOffset, MaxXOffset);
 
-    // Ensure it stays within bounds
+    
     if (newY > maxY)
     {
         newY = maxY - MinYOffset;
@@ -66,7 +66,7 @@ void spawnNext(bool isFake = false)
     );
     }
 
-    // Instantiate the platform at the adjusted position
+    
     GameObject GO = Instantiate(
         Platforma,
         new Vector2(newX, newY),
@@ -74,7 +74,7 @@ void spawnNext(bool isFake = false)
         
     );
         
-    // Assign platform properties
+    
     Platform p = GO.GetComponent<Platform>();
     p.isFake = isFake;
     p.Hrac = Hrac;

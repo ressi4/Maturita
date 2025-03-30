@@ -9,7 +9,7 @@ public class Wave : MonoBehaviour
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
-                playerHealth.TakeDamage(3); // Vlna sebere hráči všechny 3 HP
+                playerHealth.TakeDamage(3); 
             }
         }
     }

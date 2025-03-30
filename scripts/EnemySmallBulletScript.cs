@@ -24,7 +24,7 @@ public class EnemySmallBulletScript : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Hráč nebyl nalezen ve scéně!");
+            
         }
     }
 
@@ -39,17 +39,35 @@ public class EnemySmallBulletScript : MonoBehaviour
         {
             shield.BreakShield(); 
             Destroy(gameObject); 
-            Debug.Log("Štít absorboval střelu a zmizel!");
+            
             return; 
         }
 
         if (playerHealth != null)
         {
+            
             playerHealth.TakeDamage(damageAmount);
-            Debug.Log("Hráči bylo odebráno jedno srdíčko!");
+
+            
+            GameObject hitEffect = playerHealth.hitEffect;
+            if (hitEffect != null)
+            {
+                Instantiate(hitEffect, collision.transform.position, Quaternion.identity);
+            }
+
+            
+            AudioSource audio = collision.GetComponent<AudioSource>();
+            AudioClip hitSound = playerHealth.hitSound;
+            if (audio != null && hitSound != null)
+            {
+                audio.PlayOneShot(hitSound);
+            }
+
+            
         }
 
         Destroy(gameObject);
     }
 }
+
 }

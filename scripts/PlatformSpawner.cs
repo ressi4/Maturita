@@ -33,23 +33,23 @@ public class PlatformSpawner : MonoBehaviour
 
     void SpawnPlatform()
     {
-        // Určujeme pozici na ose X: poslední pozice + pevná vzdálenost
+       
         float newX = lastSpawnPosition.x + xDistance;
 
-        // Určujeme pozici na ose Y: posun mezi předchozími platformami s větší variabilitou
+        
         float randomY = Random.Range(minPlatformHeight, maxPlatformHeight);
-        float newY = lastSpawnPosition.y + randomY + Random.Range(-2f, 3f); // Přidání náhodného posunu pro větší variabilitu
+        float newY = lastSpawnPosition.y + randomY + Random.Range(-2f, 3f); 
 
-        // Zajišťujeme, že Y pozice není mimo povolené limity
+        
         newY = Mathf.Clamp(newY, minHeight, maxHeight);
 
-        // Vytvoření pozice pro novou platformu
+        
         Vector3 spawnPosition = new Vector3(newX, newY, 0f);
 
-        // Vytvoření nové platformy
+        
         Instantiate(platformPrefab, spawnPosition, Quaternion.identity);
 
-        // Aktualizace poslední pozice pro novou platformu
+        
         lastSpawnPosition = new Vector3(newX, newY, 0f);
     }
 }

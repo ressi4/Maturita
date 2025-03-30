@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class script : MonoBehaviour
 {
@@ -13,8 +14,8 @@ public class script : MonoBehaviour
     public float normalGravity = 4f;
     public float fallGravity = 10f;
 
-    public float jumpHoldTime = 0.2f; 
-    private float jumpTimeCounter; 
+    public float jumpHoldTime = 0.2f;
+    private float jumpTimeCounter;
     private bool isJumping;
 
     public Rigidbody2D rb;
@@ -26,29 +27,60 @@ public class script : MonoBehaviour
     private PlayerShield shield;
     bool facingRight = true;
 
-    public float dashDistance = 10f; 
-    public float dashDuration = 0.3f;  
-    public float dashCooldown = 5f;  
+    public float dashDistance = 10f;
+    public float dashDuration = 0.3f;
+    public float dashCooldown = 5f;
     private bool isDashing = false;
     private bool canDash = true;
+    public GameObject hitEffect;
+    public AudioClip hitSound;
+    public Text highScoreText;
 
-    public GameObject cooldownEffectObject; // Cooldown objekt ve scéně (NE PREFAB!)
+
+    public GameObject cooldownEffectObject;
+    [SerializeField] private AudioClip jumpSound;
+    private AudioSource audioSource;
+
+    private bool dashKillConfirmed = false;
+
+    public Text scoreText;
+    private int score = 0;
+    private int bestScore = 0;
+
+    private float distanceTracker = 0f;
+    public float distanceStep = 1f;
+    public int scorePerStep = 1;
+    private Vector2 lastPosition;
+
+    public Text scoreEndText;     
+    public Text newHighScoreText; 
+    
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
         shield = GetComponent<PlayerShield>();
+        audioSource = GetComponent<AudioSource>();
 
-        // **Ujistíme se, že cooldown efekt je na začátku vypnutý**
         if (cooldownEffectObject != null)
-        {
             cooldownEffectObject.SetActive(false);
-        }
+
+        lastPosition = transform.position;
+
+        if (highScoreText != null)
+    {
+        highScoreText.text = "HIGH SCORE: " + bestScore;
+    }
     }
 
     void Update()
     {
+  
+if (highScoreText != null)
+{
+    highScoreText.text = "HIGH SCORE: " + bestScore;
+}
         float speedX = Input.GetAxisRaw("Horizontal") * movSpeed;
         rb.velocity = new Vector2(speedX, rb.velocity.y);
 
@@ -57,6 +89,9 @@ public class script : MonoBehaviour
             jumpRequested = true;
             isJumping = true;
             jumpTimeCounter = jumpHoldTime;
+
+            if (jumpSound != null && audioSource != null)
+                audioSource.PlayOneShot(jumpSound);
         }
 
         if (Input.GetKey(KeyCode.Space) && isJumping)
@@ -73,14 +108,10 @@ public class script : MonoBehaviour
         }
 
         if (Input.GetKeyUp(KeyCode.Space))
-        {
             isJumping = false;
-        }
 
         if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
-        {
             StartCoroutine(Dash());
-        }
 
         if (Input.GetKey(KeyCode.DownArrow))
         {
@@ -89,23 +120,35 @@ public class script : MonoBehaviour
         }
 
         if (speedX > 0 && !facingRight)
-        {
             Flip();
-        }
         else if (speedX < 0 && facingRight)
-        {
             Flip();
+
+        float distanceThisFrame = transform.position.x - lastPosition.x;
+
+        if (distanceThisFrame > 0f)
+        {
+            distanceTracker += distanceThisFrame;
+
+            if (distanceTracker >= distanceStep)
+            {
+                int steps = Mathf.FloorToInt(distanceTracker / distanceStep);
+                AddScore(steps * scorePerStep);
+                distanceTracker -= steps * distanceStep;
+            }
         }
+
+        lastPosition = transform.position;
     }
 
     IEnumerator Dash()
     {
         isDashing = true;
         canDash = false;
+        dashKillConfirmed = false;
 
         float startTime = Time.time;
-        float dashSpeed = dashDistance / dashDuration; 
-
+        float dashSpeed = dashDistance / dashDuration;
         float direction = facingRight ? 1f : -1f;
 
         while (Time.time < startTime + dashDuration)
@@ -117,25 +160,20 @@ public class script : MonoBehaviour
         rb.velocity = Vector2.zero;
         isDashing = false;
 
-        // **Zapneme cooldown efekt a zajistíme, že je viditelný**
-        if (cooldownEffectObject != null)
+        if (!dashKillConfirmed)
         {
-            cooldownEffectObject.SetActive(true);
-
-            // **Ujistíme se, že SpriteRenderer je viditelný**
-            SpriteRenderer sr = cooldownEffectObject.GetComponent<SpriteRenderer>();
-            if (sr != null)
+            if (cooldownEffectObject != null)
             {
-                sr.enabled = true;
+                cooldownEffectObject.SetActive(true);
+                SpriteRenderer sr = cooldownEffectObject.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                    sr.enabled = true;
             }
-        }
 
-        yield return new WaitForSeconds(dashCooldown); // Čekáme na cooldown
+            yield return new WaitForSeconds(dashCooldown);
 
-        // **Vypneme cooldown efekt**
-        if (cooldownEffectObject != null)
-        {
-            cooldownEffectObject.SetActive(false);
+            if (cooldownEffectObject != null)
+                cooldownEffectObject.SetActive(false);
         }
 
         canDash = true;
@@ -151,43 +189,41 @@ public class script : MonoBehaviour
             jumpRequested = false;
         }
 
-        if (rb.velocity.y < 0) 
+        if (rb.velocity.y < 0)
         {
             rb.gravityScale = fallGravity;
             rb.velocity += Vector2.down * (fallGravity * Time.fixedDeltaTime * 2f);
         }
-        else if (rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space)) 
+        else if (rb.velocity.y > 0 && !Input.GetKey(KeyCode.Space))
         {
             rb.gravityScale = fallGravity * 0.8f;
         }
-        else 
+        else
         {
             rb.gravityScale = normalGravity;
         }
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.CompareTag("EnemyBullet"))
+        if (isDashing && (collision.gameObject.CompareTag("Enemy") || collision.gameObject.CompareTag("EnemyBig")))
         {
-            if (shield != null && shield.IsShieldActive()) 
+            EnemyDeath enemy = collision.gameObject.GetComponent<EnemyDeath>();
+            if (enemy != null)
             {
-                Destroy(collision.gameObject);
-                Debug.Log("Štít zablokoval střelu!");
-            }
-            else
-            {
-                TakeDamage(1);
-                Destroy(collision.gameObject);
+                enemy.TakeDamage(999, WeaponType.None);
+                dashKillConfirmed = true;
+
+                score += 100;
+                UpdateScoreUI();
             }
         }
-        
-        /* else if (collision.CompareTag("SpeedBoost"))
-        {
-            Debug.Log("Speed Boost sebrán!");
-            StartCoroutine(ActivateSpeedBoost(2f, 5f));
-            Destroy(collision.gameObject);
-        } */
+    }
+
+    private void UpdateScoreUI()
+    {
+        if (scoreText != null)
+            scoreText.text = "SCORE: " + score.ToString();
     }
 
     private void Flip()
@@ -198,7 +234,11 @@ public class script : MonoBehaviour
         transform.localScale = scale;
     }
 
-    
+    public void AddScore(int amount)
+    {
+        score += amount;
+        UpdateScoreUI();
+    }
 
     public IEnumerator ActivateSpeedBoost(float multiplier, float boostDuration)
     {
@@ -234,5 +274,42 @@ public class script : MonoBehaviour
     private void TakeDamage(int damage)
     {
         Debug.Log("Hráč dostal zásah! HP - " + damage);
+        Instantiate(hitEffect, transform.position, Quaternion.identity);
+        if (hitSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(hitSound);
+        }
     }
+    public void ResetScore()
+{
+    score = 0;
+    UpdateScoreUI();
+}
+public void PlayerDied()
+{
+    bool isNewHighScore = false;
+
+    if (score > bestScore)
+    {
+        bestScore = score;
+        PlayerPrefs.SetInt("BestScore", bestScore);
+        PlayerPrefs.Save();
+        isNewHighScore = true;
+    }
+
+    if (highScoreText != null)
+        highScoreText.text = "HIGH SCORE: " + bestScore;
+
+    if (scoreEndText != null)
+        scoreEndText.text = "YOUR SCORE: " + score;
+        scoreEndText.gameObject.SetActive(true);
+
+    if (newHighScoreText != null)
+        newHighScoreText.gameObject.SetActive(isNewHighScore); 
+
+    if (scoreText != null)
+    scoreText.gameObject.SetActive(false);    
+}
+
+
 }

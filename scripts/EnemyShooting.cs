@@ -49,6 +49,6 @@ public class EnemyShooting : MonoBehaviour
     void Shoot()
     {
         Instantiate(bullet, bulletPos.position, Quaternion.identity);
-        Debug.Log("Bot vystřelil!");
+        
     }
 }

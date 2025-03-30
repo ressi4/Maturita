@@ -8,15 +8,18 @@ public class PlayerShield : MonoBehaviour
     public float shieldCooldown = 2f;
     public GameObject shieldVisual;
 
+    public AudioClip shieldBreakSound;
+    private AudioSource audioSource;
+
     void Start()
     {
         if (shieldVisual != null)
         {
             shieldVisual.SetActive(false);
         }
-    }
 
-  
+        audioSource = GetComponent<AudioSource>();
+    }
 
     public void ActivateShield()
     {
@@ -42,6 +45,12 @@ public class PlayerShield : MonoBehaviour
                 shieldVisual.SetActive(false);
             }
 
+            
+            if (shieldBreakSound != null && audioSource != null)
+            {
+                StartCoroutine(PlayShieldBreakSoundLimited());
+            }
+
             Debug.Log("Štít zničen!");
             StartCoroutine(ShieldCooldown());
         }
@@ -56,5 +65,14 @@ public class PlayerShield : MonoBehaviour
     public bool IsShieldActive()
     {
         return shieldActive;
+    }
+
+    
+    IEnumerator PlayShieldBreakSoundLimited()
+    {
+        audioSource.clip = shieldBreakSound;
+        audioSource.Play();
+        yield return new WaitForSeconds(1f);
+        audioSource.Stop();
     }
 }

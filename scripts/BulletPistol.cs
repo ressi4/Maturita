@@ -1,36 +1,33 @@
 using UnityEngine;
 
-public class ShotgunBullet : MonoBehaviour
+public class BulletPistol : MonoBehaviour
 {
-    public float speed = 30f;
+    public float speed = 50f;
     public float lifeTime = 2f;
     public WeaponType weaponType;
 
     private Rigidbody2D rb;
 
-    void Awake()
+    void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        Destroy(gameObject, lifeTime);
     }
 
     public void SetSpeed(float bulletSpeed)
     {
+        rb = GetComponent<Rigidbody2D>();
         rb.velocity = transform.right * bulletSpeed;
-        Destroy(gameObject, lifeTime);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
-{
-    if (!collision.CompareTag("Player"))
     {
         EnemyDeath enemy = collision.GetComponent<EnemyDeath>();
         if (enemy != null)
         {
-            enemy.TakeDamage(2, weaponType);
+            enemy.TakeDamage(1, weaponType);
         }
 
         Destroy(gameObject);
     }
-}
-
 }

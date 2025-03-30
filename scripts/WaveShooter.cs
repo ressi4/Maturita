@@ -1,19 +1,42 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class WaveShooter : MonoBehaviour
 {
-    public GameObject wavePrefab; // Prefab vlny
-    public float waveDuration = 2f; // Jak dlouho vlna zůstane na obrazovce
-    public float waveInterval = 30f; // Interval mezi vlnami
-    public float warningTime = 3f; // Čas mezi varováním a vlnou
-    public Text warningText; // UI text pro varování
-    public Transform waveSpawnPoint; // Místo, kde se vlna zobrazí
+    public GameObject fireballPrefab;
+    public GameObject warningUI;
+    public Transform waveSpawnPoint;
+    public Transform playerTransform;
+    public float waveInterval = 5f;
+    public float warningTime = 3f;
+    public float fireballSpeed = 15f;
+    public float fireballLifetime = 5f;
+
+    private float targetY;
+    private Coroutine waveRoutineRef;
 
     void Start()
     {
-        StartCoroutine(WaveRoutine());
+        StartWaveRoutine(); 
+    }
+
+    public void StartWaveRoutine()
+    {
+        if (waveRoutineRef == null)
+        {
+            waveRoutineRef = StartCoroutine(WaveRoutine());
+            Debug.Log(" Vlny spuštěny.");
+        }
+    }
+
+    public void StopWaves()
+    {
+        if (waveRoutineRef != null)
+        {
+            StopCoroutine(waveRoutineRef);
+            waveRoutineRef = null;
+            Debug.Log(" Vlny zastaveny.");
+        }
     }
 
     IEnumerator WaveRoutine()
@@ -21,31 +44,71 @@ public class WaveShooter : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(waveInterval - warningTime);
+
+            if (playerTransform != null)
+            {
+                targetY = playerTransform.position.y;
+            }
+
             ShowWarning();
             yield return new WaitForSeconds(warningTime);
-            SpawnWave();
+            SpawnFireball();
         }
     }
 
     void ShowWarning()
     {
-        if (warningText != null)
+        if (warningUI != null)
         {
-            warningText.text = "⚠️ WAVE INCOMING! ⚠️";
-            warningText.enabled = true;
+            StartCoroutine(BlinkWarning());
+            Debug.Log(" Warning UI blikání začalo");
         }
     }
 
-    void SpawnWave()
+    IEnumerator BlinkWarning()
     {
-        if (warningText != null)
+        float blinkSpeed = 0.3f;
+        float totalTime = warningTime;
+        float elapsedTime = 0f;
+        bool isVisible = false;
+
+        while (elapsedTime < totalTime)
         {
-            warningText.enabled = false; // Skryje varování
+            isVisible = !isVisible;
+
+            Vector3 worldPos = new Vector3(playerTransform.position.x, targetY, playerTransform.position.z);
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+
+            Vector3 newPos = warningUI.transform.position;
+            newPos.y = screenPos.y;
+            warningUI.transform.position = newPos;
+
+            warningUI.SetActive(isVisible);
+
+            yield return new WaitForSeconds(blinkSpeed);
+            elapsedTime += blinkSpeed;
         }
 
-        GameObject wave = Instantiate(wavePrefab, waveSpawnPoint.position, Quaternion.identity);
-        wave.transform.localScale = new Vector3(Screen.width, 100, 1); // Nastaví šířku na celou obrazovku a výšku 100 px
-        Destroy(wave, waveDuration); // Po určité době vlna zmizí
+        warningUI.SetActive(false);
+        Debug.Log(" Warning UI blikání hotovo");
+    }
+
+    void SpawnFireball()
+    {
+        if (playerTransform != null)
+        {
+            Vector3 spawnPos = waveSpawnPoint.position;
+            spawnPos.y = targetY;
+
+            GameObject fireball = Instantiate(fireballPrefab, spawnPos, Quaternion.identity);
+            Rigidbody2D rb = fireball.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.velocity = Vector2.left * fireballSpeed;
+            }
+
+            Destroy(fireball, fireballLifetime);
+            Debug.Log(" Fireball vystřelen na výšce: " + spawnPos.y);
+        }
     }
 }
-

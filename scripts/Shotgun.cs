@@ -1,78 +1,148 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 
 public class Shotgun : MonoBehaviour
 {
-    public GameObject bulletPrefab; // Prefab náboje
-    public Transform firePoint; // Místo, odkud se střílí
-    public float fireRate = 1f; // Interval mezi výstřely
-    public float recoilAngle = 10f; // Úhel zpětného rázu
-    public float recoilSpeed = 0.1f; // Rychlost zpětného rázu
-
-    private float nextFireTime = 0f;
-    public AudioSource gunSound;
-    public Rigidbody2D playerRb;
+    public GameObject bulletPrefab;
+    public Transform firePoint;
+    public float fireRate = 1f;
+    public float recoilAngle = 10f;
+    public float recoilSpeed = 0.1f;
     public float knockbackForce = 5f;
+    public AudioSource gunSound;
 
-    private script playerScript; // Odkaz na skript hráče
-    private bool facingRight = true; // Směr hráče
+    public GameObject emptyEffectPrefab;
+    public int ammo = 5;
+    public int maxAmmo = 5;
+    public Text ammoText;
+    public bool isEquipped = false;
+
+    private bool facingRight = true;
+    private float nextFireTime = 0f;
+
+    private Rigidbody2D playerRb;
+    private script playerScript;
+    public AudioClip emptyMagSound;
 
     private void Start()
     {
-        playerScript = playerRb.GetComponent<script>(); // Získá skript hráče
+        GameObject player = GameObject.FindWithTag("Player");
+        if (player != null)
+        {
+            playerRb = player.GetComponent<Rigidbody2D>();
+            playerScript = player.GetComponent<script>();
+        }
+
+        if (ammoText == null)
+        {
+            GameObject textObj = GameObject.Find("AmmoText");
+            if (textObj != null)
+                ammoText = textObj.GetComponent<Text>();
+        }
+
     }
 
     private void Update()
     {
-        // Zkontroluje směr hráče
-        if (playerRb.velocity.x > 0)
+        
+        if (!isEquipped || ammo <= 0) return;
+
+        if (playerRb != null)
         {
-            facingRight = true;
-        }
-        else if (playerRb.velocity.x < 0)
-        {
-            facingRight = false;
+            facingRight = playerRb.velocity.x >= 0;
         }
 
-        if (Input.GetKeyDown(KeyCode.E) && Time.time >= nextFireTime) // Střelba klávesou E
+        if (Input.GetKeyDown(KeyCode.E) && Time.time >= nextFireTime)
         {
             Shoot();
             if (gunSound != null) gunSound.Play();
-            nextFireTime = Time.time + 1f / fireRate; // Nastaví cooldown
-            StartCoroutine(Recoil()); // Spustí animaci zpětného rázu
+            nextFireTime = Time.time + 1f / fireRate;
+            StartCoroutine(Recoil());
         }
     }
 
     private void Shoot()
+{
+    int bulletCount = 3;
+    float spreadAngle = 3f; 
+
+    GameObject[] bullets = new GameObject[bulletCount];
+
+    for (int i = 0; i < bulletCount; i++)
     {
-        // Vytvoří střelu
-        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
+        float angleOffset = ((float)i - (bulletCount - 1) / 2f) * spreadAngle;
+        Quaternion rotation = firePoint.rotation * Quaternion.Euler(0, 0, angleOffset);
 
-        // Dává náboji rychlost
-        Rigidbody2D rb = bullet.GetComponent<Rigidbody2D>();
-        if (rb != null)
+        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, rotation);
+        bullets[i] = bullet;
+
+        ShotgunBullet bulletScript = bullet.GetComponent<ShotgunBullet>();
+        if (bulletScript != null)
         {
-            rb.velocity = bullet.transform.right * 10f; // Střela letí dopředu
+            bulletScript.weaponType = WeaponType.Shotgun;
+            bulletScript.SetSpeed(30f);
         }
+    }
 
-        ApplyKnockback(); // Knockback po výstřelu
+    
+    for (int i = 0; i < bullets.Length; i++)
+    {
+        for (int j = i + 1; j < bullets.Length; j++)
+        {
+            Physics2D.IgnoreCollision(
+                bullets[i].GetComponent<Collider2D>(),
+                bullets[j].GetComponent<Collider2D>()
+            );
+        }
+    }
+
+    ammo--;
+
+    if (ammo > 0)
+    {
+        ApplyKnockback();
+    }
+
+    UpdateAmmoUI();
+
+    if (ammo <= 0)
+    {
+        HandleWeaponDepleted();
+    }
+}
+
+
+    public void UpdateAmmoUI()
+    {
+        if (ammoText == null) return;
+
+        ammoText.gameObject.SetActive(isEquipped);
+        ammoText.text = "AMMO: " + ammo;
+    }
+
+    private void HandleWeaponDepleted()
+    {
+        isEquipped = false;
+        if (ammoText != null)
+            ammoText.gameObject.SetActive(false);
+
+        if (emptyMagSound != null && gunSound != null)
+        {
+            StartCoroutine(PlayEmptyClicks());
+        }
     }
 
     private void ApplyKnockback()
     {
         if (playerRb != null && playerScript != null)
         {
-            float knockbackDirection = facingRight ? -1f : 1f; // Knockback směrem dozadu
-            Vector2 knockbackForceVector = new Vector2(knockbackDirection * knockbackForce, 0);
+            float knockbackDir = facingRight ? -1f : 1f;
+            Vector2 force = new Vector2(knockbackDir * knockbackForce, 0);
 
-            playerRb.velocity = Vector2.zero; // Reset rychlosti, aby knockback fungoval
-            playerRb.AddForce(knockbackForceVector, ForceMode2D.Impulse);
-
-            StartCoroutine(DisableMovementFor(0.2f)); // Na chvíli vypne ovládání hráče
-        }
-        else
-        {
-            Debug.LogWarning("Hráč nemá přiřazený Rigidbody2D nebo skript hráče!");
+            playerRb.velocity = Vector2.zero;
+            playerRb.AddForce(force, ForceMode2D.Impulse);
+            StartCoroutine(DisableMovementFor(0.2f));
         }
     }
 
@@ -80,9 +150,9 @@ public class Shotgun : MonoBehaviour
     {
         if (playerScript != null)
         {
-            playerScript.enabled = false; // Vypne ovládání hráče
+            playerScript.enabled = false;
             yield return new WaitForSeconds(duration);
-            playerScript.enabled = true; // Znovu zapne ovládání hráče
+            playerScript.enabled = true;
         }
     }
 
@@ -91,5 +161,25 @@ public class Shotgun : MonoBehaviour
         transform.rotation = Quaternion.Euler(0, 0, recoilAngle);
         yield return new WaitForSeconds(recoilSpeed);
         transform.rotation = Quaternion.Euler(0, 0, 0);
+    }
+
+    private IEnumerator PlayEmptyClicks()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            gunSound.PlayOneShot(emptyMagSound);
+            yield return new WaitForSeconds(0.3f);
+        }
+
+        if (emptyEffectPrefab != null)
+        {
+            GameObject effect = Instantiate(emptyEffectPrefab, transform.position + new Vector3(1f, 0f, 0f), Quaternion.identity);
+            Destroy(effect, 1.5f);
+        }
+
+        Destroy(gameObject);
+    }
+    public void RefillAmmo(){
+        ammo = maxAmmo;
     }
 }
