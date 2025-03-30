@@ -30,7 +30,7 @@ public class PickUpWeapon : MonoBehaviour
                 return;
             }
 
-            // Jinak vybav novou pistoli
+            
             holder = collision.transform.Find("GlockHolder");
         }
         else if (shotgun != null)
@@ -57,6 +57,12 @@ public class PickUpWeapon : MonoBehaviour
             transform.SetParent(holder);
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
+            Debug.Log(holder.parent.localScale.x);
+            if(holder.parent.localScale.x < 0){
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+            }
+            
+            Debug.Log(transform.localScale);
         }
 
         GetComponent<Collider2D>().enabled = false;

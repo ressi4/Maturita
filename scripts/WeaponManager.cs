@@ -13,9 +13,10 @@ public class WeaponManager : MonoBehaviour
     public GameObject Weapon;
     public WeaponType currentWeapon = WeaponType.None;
 
-    public Transform glockHolder;    
-    public Transform shotgunHolder;  
-    public bool hasWeaponOfType(WeaponType weapon){
+    public Transform glockHolder;
+    public Transform shotgunHolder;
+    public bool hasWeaponOfType(WeaponType weapon)
+    {
         return currentWeapon == weapon;
     }
 
@@ -27,7 +28,7 @@ public class WeaponManager : MonoBehaviour
     public void EquipWeapon(WeaponType weapon)
     {
         currentWeapon = weapon;
-        
+
     }
 
     public void UnequipWeapon()
@@ -57,16 +58,43 @@ public class WeaponManager : MonoBehaviour
             Debug.Log("Shotgun zničen.");
         }
     }
-    public Component GetWeaponOfType(WeaponType weaponType){
-        if(weaponType == WeaponType.Pistol){
-            Debug.Log(glockHolder.GetChild(0));
-            return glockHolder.GetChild(0).gameObject.GetComponent<Pistol>();
-            
-            
+    public Component GetWeaponOfType(WeaponType weaponType)
+    {
+        if (weaponType == WeaponType.Pistol)
+        {
+            if (glockHolder.childCount > 0)
+            {
+                Debug.Log(glockHolder.GetChild(0));
+                return glockHolder.GetChild(0).gameObject.GetComponent<Pistol>();
+            }
+
+
+
         }
-        if(weaponType == WeaponType.Shotgun){
-            return shotgunHolder.GetChild(0).gameObject.GetComponent<Shotgun>();
+        if (weaponType == WeaponType.Shotgun)
+        {
+            if (shotgunHolder.childCount > 0)
+            {
+                return shotgunHolder.GetChild(0).gameObject.GetComponent<Shotgun>();
+            }
         }
         return null;
+    }
+
+    public void ResetEquippedWeaponAmmo()
+    {
+        Component weaponComponent = GetWeaponOfType(currentWeapon);
+        if (weaponComponent == null) return;
+
+        if (weaponComponent is Pistol pistol)
+        {
+            pistol.ResetAmmo();
+            pistol.UpdateAmmoUI();
+        }
+        else if (weaponComponent is Shotgun shotgun)
+        {
+            shotgun.ResetAmmo();
+            shotgun.UpdateAmmoUI();
+        }
     }
 }

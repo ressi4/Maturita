@@ -182,4 +182,8 @@ public class Shotgun : MonoBehaviour
     public void RefillAmmo(){
         ammo = maxAmmo;
     }
+    public void ResetAmmo()
+{
+    ammo = 0;
+}
 }

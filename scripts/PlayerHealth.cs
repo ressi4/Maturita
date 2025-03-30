@@ -134,6 +134,7 @@ public class PlayerHealth : MonoBehaviour
         WeaponManager weaponManager = player.GetComponent<WeaponManager>();
         if (weaponManager != null)
         {
+            weaponManager.ResetEquippedWeaponAmmo();
             weaponManager.UnequipWeapon();
             weaponManager.RemoveEquippedWeaponObject();
 
