@@ -1,0 +1,1 @@
+Hru spustíte po stáhnutí složky přes soubor "My project.exe"
